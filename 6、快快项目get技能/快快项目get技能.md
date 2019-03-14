@@ -750,3 +750,141 @@ public class DateUtil {
 }
 ```
 
+# 三、递归查询组织架构
+
+建表
+
+```sql
+CREATE TABLE `tbl_dept` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `dept_name` varchar(255) DEFAULT NULL,
+  `loc_add` varchar(255) DEFAULT NULL,
+  `parent_id` int(11) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8;
+```
+
+核心代码
+
+```java
+/**
+	 * @Description: 递归查询机构 
+	 * @param @param departList
+	 * @param @param departId    设定文件 
+	 * @return void    返回类型 
+	 * @throws
+	 */
+private void getDepartmentList(List<SysDepartment> departList, Integer departId) {
+  try {
+    List<SysDepartment> list = departmentService.getDListByParentId(departId);
+    if (null != list && list.size()>0) {
+      for (int i = 0; i < list.size(); i++) {
+        SysDepartment department = list.get(i);
+        departList.add(department);
+        getDepartmentList(departList, department.getDepartId());//递归调用
+      }
+    }
+  } catch (Exception e) {
+    e.printStackTrace();
+  }
+}
+```
+
+调用：
+
+```java
+List<SysDepartment> departList = departmentService.getDListByParentId(Integer.parseInt(departId));
+if (null != departList && departList.size() > 0) {
+  SysDepartment department = departList.get(0);
+  getDepartmentList(departList, department.getDepartId());
+  returnCode = Const.RETURN_CODE_1;
+  map.put("department", departList);
+}
+```
+
+自己感悟写的递归：
+
+```java
+package com.eim.dos;
+
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableName;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.util.List;
+
+/**
+ * DESC: *
+ * Created by zhengyong on 2019/3/14.
+ */
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@TableName("tbl_dept")
+public class DepartmentDO {
+
+    private Integer id;
+
+    private String deptName;
+
+    private String locAdd;
+
+    private Integer parentId;
+
+    @TableField(exist = false)
+    private List<DepartmentDO> doList;
+
+}
+
+```
+
+测试类：、
+
+```java
+	/**
+	 * @Description: 递归查询机构
+	 * @param @param departList
+	 * @param @param departId    设定文件
+	 * @return void    返回类型
+	 * @throws
+	 */
+	private void getDepartmentList(DepartmentDO departmentDO) {
+		try {
+
+			QueryWrapper<DepartmentDO> wp = new QueryWrapper<>();
+			wp.eq("parent_id",departmentDO.getId());
+			List<DepartmentDO> list = departmentDao.selectList(wp);
+
+			departmentDO.setDoList(list);
+			if (null != list && list.size()>0) {
+				for (int i = 0; i < list.size(); i++) {
+
+					DepartmentDO department = list.get(i);
+
+					getDepartmentList(department);//递归调用
+				}
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+
+	/**
+	 * 测试递归方法
+	 */
+	@Test
+	public void testDiGui(){
+		QueryWrapper<DepartmentDO> wp = new QueryWrapper<>();
+		wp.eq("parent_id",0);
+		List<DepartmentDO> departList = departmentDao.selectList(wp);
+		if (null != departList && departList.size() > 0) {
+			departList.stream().forEach(departmentDO->{
+				getDepartmentList(departmentDO);
+			});
+		}
+	}
+```
+
