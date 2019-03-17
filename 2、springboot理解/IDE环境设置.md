@@ -11,9 +11,20 @@ Keymap                   快捷键设置--导jar包 File--import Setting
 
 Editor--> General--> Auto Import 自动导包设置  All
 
+Editor--> General-->Appearance --->
+Show line numbers：显示行数。我建议一般这个
+要勾选上
+可以勾选 Show method separators： 显示方法分隔线。这
+种线有助于我们区分开方法，所以建议勾选上。
+
+Editor--> General-->Code Completion--->Case sensitive completion: 修改为 None .忽略大小写提示
+
+
+
 Appearance&Behavior --> Appearance  Theme 主题设置
 Editor--> Color&Font --> Language Defaults --> Comments --> Block comment(块注释设置/***/) 
 --> Line comment(注释设置//)喜欢的颜色类型：3875D6
+
 
 场景
 Editor-->Colors&Font-->General-->Text-->Default text-->Background 	点击设置护眼颜色CD7EDCC
