@@ -888,3 +888,291 @@ public class DepartmentDO {
 	}
 ```
 
+# 四、同一返回帮助类
+
+## 1、ResponseHelper
+
+```mysql
+package com.dftcmedia.tckk.microservice.common.util;
+
+import com.dftcmedia.tckk.microservice.common.enums.ServiceCodeEnum;
+import com.dftcmedia.tckk.microservice.common.model.vos.JsonResultVO;
+
+import java.util.Map;
+
+/**
+ * <p>DESC: </p>
+ * <p>DATE: 2019/1/30</p>
+ * <p>VERSION:1.0.0</p>
+ * <p>@AUTHOR: DengC</p>
+ */
+public class ResponseHelper<T> {
+    public static<T> JsonResultVO<T> createJsonResult(T obj) {
+        return new JsonResultVO<T>(obj);
+    }
+
+    public static<T> JsonResultVO<T> createJsonResult(ServiceCodeEnum serviceCodeEnum) {
+        return new JsonResultVO<>(serviceCodeEnum.getCode(), serviceCodeEnum.getMessage());
+    }
+
+    public static<T> JsonResultVO<T> createJsonResult(ServiceCodeEnum serviceCodeEnum, T data) {
+        return new JsonResultVO<>(serviceCodeEnum.getCode(), serviceCodeEnum.getMessage(), data);
+    }
+
+    public static JsonResultVO<Map<String, String>> createJsonResult(Map<String, String> map) {
+        return new JsonResultVO<>(map);
+    }
+
+    public static<T> JsonResultVO<T> createJsonResult() {
+        return new JsonResultVO<>();
+    }
+
+    public static<T> JsonResultVO<T> createJsonResult(Integer code, String message) {
+        return new JsonResultVO<>(code, message);
+    }
+
+    public static<T> JsonResultVO<T> createJsonResult(Integer code, String message, T data) {
+        return new JsonResultVO<>(code, message, data);
+    }
+}
+
+```
+
+## 2、ServiceCodeEnum
+
+```java
+package com.dftcmedia.tckk.microservice.common.enums;
+
+import com.alibaba.druid.wall.Violation;
+import lombok.Getter;
+
+/**
+ * <p>DESC: </p>
+ * <p>DATE: 2019/2/13</p>
+ * <p>VERSION:1.0.0</p>
+ * <p>@AUTHOR: DengC</p>
+ */
+@Getter
+public enum ServiceCodeEnum {
+    /**
+     *
+     */
+    SUCCESS(0, "成功"),
+
+    /**
+     * 失败
+     */
+    FAIL(1, "失败"),
+
+    /**
+     * 无效请求
+     */
+    BAD_REQUEST(400, "无效请求"),
+
+    /**
+     * 无效鉴权信息
+     */
+    UNAUTHORIZED(401, "无效授权信息"),
+
+    /**
+     * 无权访问此资源
+     */
+    FORBIDDEN(403, "无权访问此资源"),
+
+    /**
+     * 无效的访问地址
+     */
+    INVALID_URL(404, "无效的访问地址"),
+
+    /**
+     * 访问控制
+     */
+    LIMIT(406, "访问过于频繁，请稍后再试"),
+
+    /**
+     * 服务器内部错误
+     */
+    SERVER_INTERNAL_ERROR(500, "服务器内部错误"),
+
+    /**
+     * 暂不可服务
+     */
+    SERVICE_UNAVAILABLE(503, "暂不可服务"),
+
+    /**
+     * 数据完整性异常 数据过长  过短
+     */
+    LENGTH_REQUIRED(411, "数据完整性异常"),
+
+    /**
+     * 数据格式错误
+     */
+    DATA_FORMAT_ERROR(416, "数据格式错误"),
+
+    /**
+     * 不支持的请求方式
+     */
+    NOT_SUPPORTED(415, "不支持的请求方式"),
+
+    /**
+     * 账户已锁定
+     */
+    LOCKED(423, "账户已锁定，请联系客服"),
+
+    /**
+     * 需要认证
+     */
+    AUTHENTICATION_REQUIRED(511, "需要认证"),
+
+    /**
+     * 不支持的文件类型
+     */
+    UNSUPPORTED_FILE_TYPE(601, "不支持的文件类型"),
+
+    /**
+     * 手机号已绑定
+     */
+    TEL_IS_NOT_BIND(603, "未绑定手机号"),
+
+    /**
+     * 手机号已绑定
+     */
+    TEL_IS_BIND(602, "手机号已绑定"),
+    /**
+     * 账号不存在
+     */
+    ACCOUNT_NON_EXISTENT(603, "账号不存在"),
+    /**
+     * 账号已存在
+     */
+    ACCOUNT_REGISTERED(604, "账号已存在"),
+
+    /**
+     * 无效验证码
+     */
+    INVALID_VERIFY_CODE(605, "无效验证码"),
+
+    /**
+     * 账户密码错误
+     */
+    ACCOUNT_PASSWORD_ERROR(606, "账户密码错误"),
+
+    /**
+     * 不支持的登录方式
+     */
+    NOT_SUPPORT_LOGIN_CHANNEL(607, "不支持的登录方式"),
+
+    /**
+     * token已过期
+     */
+    TOKEN_EXPIRED(608, "token已过期"),
+
+    /**
+     * 需要登录后操作
+     */
+    NEED_LOGIN(609, "需要登录后操作"),
+
+    /**
+     * 第三方登录失败
+     */
+    THIRD_LOGIN_ERROR(610, "第三方登录失败"),
+
+    /**
+     * 验证码获取失败
+     */
+    VERIFY_CODE_FAIL(611, "验证码获取失败"),
+
+    /**
+     * 注册失败
+     */
+    REGISTER_FAIL(612, "注册失败"),
+
+    /**
+     * 角色已存在
+     */
+    ROLE_EXIST(613, "角色已存在"),
+
+    /**
+     * 二维码获取失败
+     */
+    QR_CODE_GET_FAIL(614, "二维码获取失败"),
+    /**
+     * 该商铺已经认证
+     */
+    SHOP_IS_CERTIFICATION(615, "该商铺已经认证"),
+    /**
+     * 该商铺ID不能为空
+     */
+    SHOP_ID_NOT_NULL(615, "该商铺ID不能为空"),
+    /**
+     * 该商铺类型没有认证记录
+     */
+    SHOP_TYPE_NOT_CERTIFICATION(615, "该商铺类型没有认证记录"),
+    /**
+     * 该商铺类型不能为空
+     */
+    SHOP_TYPE_NULL_CERTIFICATION(615, "该商铺类型不能为空"),
+
+    /**
+     * 开启重复的代办流程
+     */
+    TASK_IS_OPEN(615, "开启重复的代办流程"),
+
+    /**
+     * 有尚未完成的任务
+     */
+    TASK_IS_NOT_OVER(616, "有尚未完成的任务"),
+    /**
+     * 该商铺已经认证
+     */
+    SHOP_IS_DRAFT(617, "该商铺已经存在草稿信息"),
+
+    /**
+     * 该店铺名称已经存在
+     */
+    SHOP_SHOP_NAME_EXIST(618, "该名称已经存在"),
+    /**
+     * 该记录已经审核
+     */
+    REMARK_IS_EXAMINE(618, "该记录已经审核"),
+    /**
+     * 只有管理员才能操作
+     */
+    SHOP_ONLY_MANAGER_HANDLE(619, "只有管理员才能操作"),
+    /**
+     * 该用户已经在商铺中
+     */
+    SHOP_USER_EXIST(620, "该用户已经在商铺中"),
+    /**
+     * 你已经申请,请耐心等待
+     */
+    SHOP_APPLY_EXIST(620, "你已经申请,请耐心等待"),
+
+    /**
+     * 参数错误
+     */
+    PARAM_ERROR(701, "参数错误，缺少必要参数"),
+
+    /**
+     * 参数错误，请选择正确的参数
+     */
+    DEPARTMENT_ERROR(703, "请选择正确的部门"),
+
+    /**
+     * 无数据
+     */
+    NO_DATA(702, "无数据");
+
+
+    ServiceCodeEnum(Integer code, String message) {
+        this.code = code;
+        this.message = message;
+    }
+
+    private Integer code;
+
+    private String message;
+}
+
+```
+
