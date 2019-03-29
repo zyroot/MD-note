@@ -2,6 +2,8 @@
 
 # 一、全局异常处理
 
+![](assert/统一异常处理解析图.png)
+
 ## 1、异常枚举对象创建
 
 ```java
@@ -406,7 +408,7 @@ import java.util.*;
 /**
  * <p>DESC: 时间工具</p>
  * <p>DATE: 2019/2/12</p>
- * <p>VERSION:1.0.0</p>
+ * <p>VERSION:1.0.0</p>s
  * <p>@AUTHOR: DengC</p>
  */
 public class DateUtil {
@@ -1174,5 +1176,63 @@ public enum ServiceCodeEnum {
     private String message;
 }
 
+```
+
+## 3、jsonResultVo
+
+```java
+package com.dftcmedia.tckk.microservice.common.model.vos;
+
+import lombok.Data;
+
+import java.io.Serializable;
+
+/**
+ * <p>DESC: </p>
+ * <p>DATE: 2019/1/30</p>
+ * <p>VERSION:1.0.0</p>
+ * <p>@AUTHOR: DengC</p>
+ */
+@Data
+public class JsonResultVO<T> implements Serializable {
+    private static final long serialVersionUID = -7581376698660757259L;
+    /**
+     * 响应code
+     */
+    private Integer code;
+
+    /**
+     * 响应信息
+     */
+
+    private String msg;
+
+    /**
+     * 响应数据
+     */
+    private T data;
+
+    public JsonResultVO(Integer code, String msg) {
+        this.code = code;
+        this.msg = msg;
+    }
+
+    public JsonResultVO(Integer code, String msg, T data) {
+        this.code = code;
+        this.msg = msg;
+        this.data = data;
+    }
+
+    public JsonResultVO(T data) {
+        this.code = 0;
+        this.msg = "成功";
+        this.data = data;
+    }
+
+    public JsonResultVO() {
+        this.code = 0;
+        this.msg = "成功";
+    }
+}
 ```
 
