@@ -1,4 +1,34 @@
-Docker 安装：
+# Docker 安装：
+
+centerOs初次安装无法联网问题：
+
+```shell
+[root@localhost /]# cd etc/sysconfig/network-scripts/
+[root@localhost network-scripts]# ls
+ifcfg-ens33  ifdown-eth   ifdown-post    ifdown-Team      ifup-aliases  ifup-ipv6   ifup-post    ifup-Team      init.ipv6-global
+ifcfg-lo     ifdown-ippp  ifdown-ppp     ifdown-TeamPort  ifup-bnep     ifup-isdn   ifup-ppp     ifup-TeamPort  network-functions
+ifdown       ifdown-ipv6  ifdown-routes  ifdown-tunnel    ifup-eth      ifup-plip   ifup-routes  ifup-tunnel    network-functions-ipv6
+ifdown-bnep  ifdown-isdn  ifdown-sit     ifup             ifup-ippp     ifup-plusb  ifup-sit     ifup-wireless
+[root@localhost network-scripts]# vi ifcfg-ens33 
+TYPE=Ethernet
+PROXY_METHOD=none
+BROWSER_ONLY=no
+BOOTPROTO=dhcp
+DEFROUTE=yes
+IPV4_FAILURE_FATAL=no
+IPV6INIT=yes
+IPV6_AUTOCONF=yes
+IPV6_DEFROUTE=yes
+IPV6_FAILURE_FATAL=no
+IPV6_ADDR_GEN_MODE=stable-privacy
+NAME=ens33
+UUID=b68e548c-76be-475c-adf7-5f7e05708430
+DEVICE=ens33
+ONBOOT=yes
+
+```
+
+将`ONBOOT=no`修改为==yes== ;
 
 # 一、CenterOs6.8  安装 docker：
 
@@ -650,7 +680,18 @@ docker commit -a="zzyy" -m="tomcat withot docs" 3f70b7675766 atguigu/mytomcat02:
 	没有写操作  read only，只有宿主机的单项的操作是可行的
 ```
 
+**==小结：==** 
 
+| 宿主机文件 | 容器内文件 | 启动参数（加粗表示不存在）                   | 容器启动情况 |
+| ----- | ----- | ------------------------------- | ------ |
+| 不存在   | 文件    | -v **~/test.txt**:/etc/hosts    | 启动错误   |
+| 不存在   | 文件夹   | -v **~/srv**:/srv               | 启动正常   |
+| 文件    | 不存在   | -v ~/test.txt:**/srv/test.txt** | 启动正常   |
+| 文件夹   | 不存在   | ~/test:**/srv/test**            | 启动正常   |
+| 文件夹   | 文件    | ~/test:/srv/test                | 启动错误   |
+| 文件夹   | 文件夹   | -v ~/srv:/srv                   | 启动正常   |
+| 文件    | 文件    | -v ~/test.txt:/srv/test.txt     | 启动正常   |
+| 文件    | 文件夹   | -v ~/test.txt:/test             | 启动错误   |
 
 ### 		2）、dockerFile添加 
 
@@ -1085,6 +1126,201 @@ docker run -p 6379:6379 -v /zzyy/myredis/data:/data -v /zzyyuse/myredis/conf/red
 ```
 
 ## 	4、安装nginx:
+
+### 1、拉取镜像：
+
+```shell
+docker pull nginx
+```
+
+### 2、运行NGINX容器
+
+```she
+docker run -d -p 80:80 --name mynginx 镜像id
+```
+
+### 3、NGINX docker中的文件位置
+
+> 静态页面位置
+
+```shell
+root@c0462d5e1878:/usr/share/nginx/html# ls 这个路径就是默认的静态页面存放路径
+50x.html  index.html
+```
+
+> 配置文件位置
+>
+> b. docker中nginx配置文件位置一览
+>
+> docker进入nginx命令：     docker exec -it <CONTAINER ID>  /bin/sh
+>
+> nginx.conf       --/etc/nginx/nginx.conf
+>
+> default.conf     --/etc/nginx/conf.d/default.conf
+>
+> logs                 --/var/log/nginx
+>
+> files                 -- /tmp/files    (配置文件可以更改)
+
+```shell
+root@a6ca2640fee9:/etc/nginx# ls
+conf.d fastcgi_params   koi-utf  koi-win  mime.types  modules  nginx.conf  scgi_params  uwsgi_params  win-utf
+```
+
+配置文件详情：==注意==所有`/etc/nginx/conf.d/*.conf`;都会生效
+
+```shell
+root@a6ca2640fee9:/etc/nginx# cat nginx.conf 
+
+user  nginx;
+worker_processes  1;
+
+error_log  /var/log/nginx/error.log warn;
+pid        /var/run/nginx.pid;
+
+
+events {
+    worker_connections  1024;
+}
+
+
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+
+    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for"';
+
+    access_log  /var/log/nginx/access.log  main;
+
+    sendfile        on;
+    #tcp_nopush     on;
+
+    keepalive_timeout  65;
+
+    #gzip  on;
+
+    include /etc/nginx/conf.d/*.conf;
+}
+```
+
+default.config配置文件
+
+```shell
+root@408abc7929f8:/etc/nginx/conf.d# cat default.conf 
+server {
+    listen       80;
+    server_name  localhost;
+
+    location / {
+        root   /usr/share/nginx/html;
+        index  index.html index.htm;
+    }
+    
+    error_page   500 502 503 504  /50x.html;
+    location = /50x.html {
+        root   /usr/share/nginx/html;
+    }
+
+}
+```
+
+
+
+### 4、挂载docker容器卷
+
+>  配置文件位置
+
+b. docker中nginx配置文件位置一览
+
+docker进入nginx命令：     docker exec -it <CONTAINER ID>  /bin/sh
+
+==/etc/nginx/conf.d/*.conf 路径下所有配置文件都生效== 
+
+nginx.conf       --/etc/nginx/nginx.conf
+
+default.conf     --/etc/nginx/conf.d/default.conf
+
+logs                 --/var/log/nginx
+
+files                 -- /tmp/files    (配置文件可以更改)
+
+思路：因为所有都走配置文件，即配置一个挂载目录，指向/etc/nginx/conf.d/ ，再另起一个挂载目录home,指向home;然后利用配置文件指到home路径即可；
+
+```shell
+docker run -d -p 80:80 --name mynginx -v /zyroot/nginx/home:/home  -v /zyroot/nginx/config:/etc/nginx/conf.d 镜像id
+```
+
+详解：
+
+```shell
+docker run -d 
+#端口映射
+-p 80:80 
+#取名字
+--name mynginx 
+#容器卷1（静态页面文件夹映射）
+-v /zyroot/nginx/home:/home  
+#容器卷2（配置文件夹映射）
+-v /zyroot/nginx/config:/etc/nginx/conf.d 
+镜像id
+```
+
+### 参考原文：
+
+3、搭建文件服务器：
+
+如果想要使用nginx搭建静态文件服务器，并使用宿主机的目录存放文件，则需要在创建容器的时候使用-v指定主机挂载目录与容器被挂载的目录。
+
+（1）挂载主机目录：
+
+使用-v挂载目录，冒号前面部分是主机要挂载文件路径，冒号后面部分是挂载到容器的路径
+
+-v /home:/home表示将宿主机的home目录下的所有文件挂载到容器的home目录下
+
+[root@izwz9ib5he33fx3jnuis2xz ~]# docker run --name nginx -d -p 80:80 -v /home:/home nginx
+
+（2）打开配置文件：
+
+第一步：进入容器内部
+
+[root@izwz9ib5he33fx3jnuis2xz ~]# docker exec -ti nginx /bin/bash
+
+第二步：修改nginx的配置文件
+
+root@bcd974e90360:/# cd etc/nginx/conf.d/
+root@bcd974e90360:/etc/nginx/conf.d# vim default.conf
+
+（3）修改配置文件，使root根目录指向挂载目录：
+
+```shell
+server {
+
+    listen       80;
+
+    server_name  localhost;
+
+charset koi8-r;
+
+access_log  /var/log/nginx/host.access.log  main;
+
+    location / {
+
+root   /usr/share/nginx/html;
+
+     root   /home/userfile;  #修改root根目录，使指向路径为/home/userfile
+
+        index  index.html index.htm;
+
+}
+```
+
+
+
+
+
+
 
 ## 5、安装FASTDFS文件服务器：
 
