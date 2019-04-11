@@ -1318,29 +1318,120 @@ root   /usr/share/nginx/html;
 
 
 
-
-
-
-
 ## 5、安装FASTDFS文件服务器：
 
-### 1.拉取镜像：
+参考地址：https://blog.csdn.net/TTTZZZTTTZZZ/article/details/86709318
+
+### 1.拉取镜像并启动：
 
 ```shell
-docker pull docker.io/delron/fastdfs 
+docker run -d --restart=always --privileged=true --net=host --name=fastdfs -e IP=47.95.234.255 -e WEB_PORT=80 -v ${HOME}/fastdfs:/var/local/fdfs registry.cn-beijing.aliyuncs.com/tianzuo/fastdfs
 ```
+
+> 其中-v  $ {HOME}/fastdfs:/var/local/fdfs是指：
+>
+> 将$ {HOME}/fastdfs这个目录挂载到容器里的/var/local/fdfs这个目录里。
+>
+> 所以上传的文件将被持久化到${HOME}/fastdfs/storage/data里，IP 后面是自己的服务器公网ip或者虚拟机ip，
+>
+> -e WEB_PORT=80 指定nginx端口
+>
+> 注意：${HOME}  默认指定的是 /root 目录
 
 ### 2.运行tracker:
 
 ```shell
-docker run -dti --network=host --name tracker -v /zyuse/fdfs/tracker:/var/fdfs a729ac95698a
+#进入容器
+docker exec -it fastdfs /bin/bash
+
+#插入index.html
+echo "Hello FastDFS!">index.html
+
+#测试上传
+fdfs_test /etc/fdfs/client.conf upload index.html
+
+#得到访问路径，并成功访问，即证明上传成功
+
 ```
 
-### 3.运行storage:
+### 3.springboot整合fastdfds
 
-```shell
-docker run -dti --network=host --name storage -e TRACKER_SERVER=10.211.55.5:22122 -v /zyuse/fdfs/storage:/var/fdfs a729ac95698a
+添加依赖
+
+```xml
+		<dependency>
+            <groupId>com.github.tobato</groupId>
+            <artifactId>fastdfs-client</artifactId>
+        </dependency>
 ```
+
+配置文件：
+
+```yaml
+# 分布式文件系统fastdfs配置
+fdfs:
+ # socket连接超时时长
+ soTimeout: 1500
+ # 连接tracker服务器超时时长
+ connectTimeout: 600
+ pool:
+   # 从池中借出的对象的最大数目
+   max-total: 153
+   # 获取连接时的最大等待毫秒数100
+   max-wait-millis: 102
+ # 缩略图生成参数，可选
+ thumbImage:
+   width: 150
+   height: 150
+ # 跟踪服务器tracker_server请求地址,支持多个，这里只有一个，如果有多个在下方加- x.x.x.x:port
+ trackerList:
+   - 47.95.234.255:22122
+ #
+ # 存储服务器storage_server访问地址
+ web-server-url: http://47.95.234.255/
+ spring:
+   http:
+     multipart:
+       max-file-size: 100MB # 最大支持文件大小
+       max-request-size: 100MB # 最大支持请求大小
+```
+
+测试类：
+
+```java
+public class FdfsTest {
+
+    @Autowired
+    private FastFileStorageClient storageClient;
+
+
+    @Test
+    public void testUpload() throws FileNotFoundException {
+        File file = new File("G:\\img.png");
+        // 上传并且生成缩略图
+        StorePath storePath = this.storageClient.uploadFile(
+                new FileInputStream(file), file.length(), "png", null);
+        // 带分组的路径
+        System.out.println(storePath.getFullPath());
+        // 不带分组的路径
+        System.out.println(storePath.getPath());
+    }
+
+    @Test
+    public void testUploadAndCreateThumb() throws FileNotFoundException {
+        File file = new File("G:\\img.png");
+        // 上传并且生成缩略图
+        StorePath storePath = this.storageClient.uploadFile(
+                new FileInputStream(file), file.length(), "png", null);
+        // 带分组的路径
+        System.out.println(storePath.getFullPath());
+        // 不带分组的路径
+        System.out.println(storePath.getPath());
+    }
+}
+```
+
+
 
 # 九、Docker容器自启动
 
