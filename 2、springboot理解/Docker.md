@@ -46,17 +46,17 @@ ONBOOT=yes
 
 # 二、CenterOs7  安装 docker：
 
-​	1）、安装linux虚拟机
+​	安装linux虚拟机
 
-​	1）、VMWare、VirtualBox（安装）；
+## 1）、VMWare、VirtualBox（安装）；
 
-​	2）、导入虚拟机文件centos7-atguigu.ova；
+## 2）、导入虚拟机文件centos7-atguigu.ova；
 
-​	3）、双击启动linux虚拟机;使用  root/ 123456登陆
+## 3）、双击启动linux虚拟机;使用  root/ 123456登陆
 
-​	4）、使用客户端连接linux服务器进行命令操作；
+## 4）、使用客户端连接linux服务器进行命令操作；
 
-​	5）、设置虚拟机网络；
+## 5）、设置虚拟机网络；
 
 ​		桥接网络===选好网卡====接入网线；
 
@@ -64,31 +64,33 @@ ONBOOT=yes
 
 ​        	无线网标识 Wireless
 
-​	6）、设置好网络以后使用命令重启虚拟机的网络
+## 6）、设置好网络以后使用命令重启虚拟机的网络
 
 ​		service network restart
 
-​	7）、查看linux的ip地址
+## 7）、查看linux的ip地址
 
 ​		ip addr
 
-​	8）、使用客户端连接linux；
+## 8）、使用客户端连接linux；
 
 ## 	9）、在linux虚拟机上安装docker
 
 步骤：
+
+==注意：开机自启动（systemctl enable docker==  
 
 ```shell
 1、检查内核版本，centos版本必须是3.10及以上
 uname -r
 2、安装docker
 yum install docker
-3、输入y确认安装
+3、输入y确认安装 
 4、启动docker
 [root@localhost ~]# systemctl start docker
 [root@localhost ~]# docker -v
 Docker version 1.12.6, build 3e8e77d/1.12.6
-5、开机启动docker
+#5、开机启动docker
 [root@localhost ~]# systemctl enable docker
 Created symlink from /etc/systemd/system/multi-user.target.wants/docker.service to /usr/lib/systemd/system/docker.service.
 6、停止docker
