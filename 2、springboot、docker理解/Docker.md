@@ -1437,6 +1437,14 @@ public class FdfsTest {
 
 # 九、Docker容器自启动
 
+首先要docker自启动：
+
+- docker服务自动重启设置
+
+```shell
+systemctl enable docker.service
+```
+
 ## 1、容器自启动概述：
 
 ​     Docker提供了restart policy机制，可以在容器退出或者Docker重启时控制容器能够自启动。这种Restart policy可以保证相关容器按照正确顺序启动。虽然也可以通过进程监控的方式(如systemd)来完成这种动作，但Docker还是建议尽量避免使用进程监控的方式来 "自启动" 容器。
