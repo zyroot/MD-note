@@ -1481,3 +1481,20 @@ $ docker run -dit --restart unless-stopped redis
 参考: 
 
 flags related to service restart 
+
+4、实际使用
+
+> 情景1：容器未启动
+
+在运行docker容器时可以==加==如下参数来保证每次docker服务重启后容器也自动重启：
+
+```shell
+docker run --restart=always
+```
+
+> 情景2：容器已经启动
+
+```shell
+docker update --restart=always <CONTAINER ID>
+```
+
