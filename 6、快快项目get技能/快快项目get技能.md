@@ -269,7 +269,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 public class GlobalExceptionHandler {
     /**
      * Exception异常类捕捉
-     *
+     * 最大异常
      * @param e 异常信息
      * @return JsonResultVO
      */
@@ -282,7 +282,7 @@ public class GlobalExceptionHandler {
 
     /**
      * apiException异常类捕捉
-     *
+     * 自定义异常
      * @param e 异常信息
      * @return JsonResultVO
      */
@@ -295,7 +295,7 @@ public class GlobalExceptionHandler {
 
     /**
      * MethodArgumentNotValidException异常处理
-     *
+     * 方法参数不匹配异常
      * @param e 异常信息
      * @return JsonResultVO
      */
@@ -314,6 +314,7 @@ public class GlobalExceptionHandler {
 
     /**
      * HttpMediaTypeNotSupportedException异常处理
+     	http媒体类型不支持异常（一般是请求中contentType导致springmvc错误）
      *
      * @param e 异常信息
      * @return JsonResultVO
@@ -328,7 +329,9 @@ public class GlobalExceptionHandler {
 
     /**
      * IllegalStateException异常处理
-     *
+     * 非法状态异常
+     （ 原因：
+    	该异常表示，当前对客户端的响应已经结束，不能在响应已经结束（或说消亡）后再向客户端（实际上是缓冲		区）输出任何内容。）
      * @param e 异常信息
      * @return JsonResultVO
      */
@@ -341,8 +344,8 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * IllegalStateException异常处理
-     *
+     * HttpRequestMethodNotSupportedException异常处理
+     * http请求方法不支持异常
      * @param e 异常信息
      * @return JsonResultVO
      */
@@ -356,7 +359,7 @@ public class GlobalExceptionHandler {
 
     /**
      * DataIntegrityViolationException异常处理
-     *
+     * 数据完整性异常（这个异常是当插入、删除和修改数据的时候，违背的数据完整性约束抛出的异常。例如：主键重复异常等）
      * @param e 异常信息
      * @return JsonResultVO
      */
@@ -370,7 +373,7 @@ public class GlobalExceptionHandler {
 
     /**
      * BindException异常处理
-     *
+     * @valid校验失败绑定异常（springmvc）
      * @param e 异常信息
      * @return JsonResultVO
      */
