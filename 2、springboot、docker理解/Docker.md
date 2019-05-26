@@ -1367,6 +1367,17 @@ fdfs_test /etc/fdfs/client.conf upload index.html
         </dependency>
 ```
 
+### 3.1引入配置类：
+
+```java
+@Configuration
+@Import(FdfsClientConfig.class)
+// 解决jmx重复注册bean的问题
+@EnableMBeanExport(registration = RegistrationPolicy.IGNORE_EXISTING)
+public class FastClientImporter {
+}
+```
+
 配置文件：
 
 ```yaml
