@@ -1035,7 +1035,70 @@ Negative matches:（没有启动，没有匹配成功的自动配置类）
         
 ```
 
+## 9、常见springboot 配置
 
+### (1)、springboot之jackson
+
+```yaml
+
+spring:
+  jackson:
+    #日期格式化
+    date-format: yyyy-MM-dd HH:mm:ss
+    serialization:
+       #格式化输出 
+      indent_output: true
+      #忽略无法转换的对象
+      fail_on_empty_beans: false
+    #设置空如何序列化
+    defaultPropertyInclusion: NON_EMPTY
+    deserialization:
+      #允许对象忽略json中不存在的属性
+      fail_on_unknown_properties: false
+    parser:
+      #允许出现特殊字符和转义符
+      allow_unquoted_control_chars: true
+      #允许出现单引号
+      allow_single_quotes: true
+```
+
+### （2）redis
+
+```yaml
+spring:
+  redis:
+#    host: 192.168.2.34
+    host: 47.102.115.60
+    password: 123456
+    port: 60010
+```
+
+### (3)mysql
+
+```yaml
+spring: 
+   datasource:
+    url: jdbc:mysql://192.168.2.33:3306/dftc_ots?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=GMT%2B8
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: root
+    password: Tckk@2019_mysql
+```
+
+### (4)mybatisPlus
+
+```yaml
+mybatis-plus:
+  configuration:
+    cache-enabled: false
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    id-type: 2
+    db-column-underline: true
+    table-prefix: dftc_oss_
+    refresh-mapper: true
+  type-handlers-package: com.dftcmedia.tckk.microservice.ots.common.typehandler
+```
 
 
 
