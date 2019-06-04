@@ -114,3 +114,30 @@ eureka:
 增加reasonable属性，默认值为false，使用默认值时不需要增加该配置，需要设为true时，需要配置该参数。具体作用请看上面配置文件中的注释内容。
 
 为了支持startPage(Object params)方法，增加了一个params参数来配置参数映射，用于从Map或ServletRequest中取值，可以配置pageNum,pageSize,count,pageSizeZero,reasonable,不配置映射的用默认值。
+
+
+
+# bootstrap和application.yml
+
+SpringBoot默认支持properties和YAML两种格式的配置文件。前者格式简单，但是只支持键值对。如果需要表达列表，最好使用YAML格式。SpringBoot支持自动加载约定名称的配置文件，例如application.yml。如果是自定义名称的配置文件，就要另找方法了。可惜的是，不像前者有@PropertySource这样方便的加载方式，后者的加载必须借助编码逻辑来实现。
+
+## 一、执行顺序
+
+**bootstrap.yml（bootstrap.properties）与application.yml（application.properties）执行顺序**
+
+bootstrap.yml（bootstrap.properties）用来程序引导时执行，应用于更加早期配置信息读取，如可以使用来配置application.yml中使用到参数等
+
+application.yml（application.properties) 应用程序特有配置信息，可以用来配置后续各个模块中需使用的公共参数等。
+
+bootstrap.yml 先于 application.yml 加载
+
+## 二、典型的应用场景如下：
+
+- 当使用 Spring Cloud Config Server 的时候，你应该在 bootstrap.yml 里面指定 spring.application.name 和 spring.cloud.config.server.git.uri
+- 和一些加密/解密的信息
+
+技术上，bootstrap.yml 是被一个父级的 Spring ApplicationContext 加载的。这个父级的 Spring ApplicationContext是先加载的，在加载application.yml 的 ApplicationContext之前。
+
+为何需要把 config server 的信息放在 bootstrap.yml 里？
+
+当使用 Spring Cloud 的时候，配置信息一般是从 config server 加载的，为了取得配置信息（比如密码等），你需要一些提早的或引导配置。因此，把 config server 信息放在 bootstrap.yml，用来加载真正需要的配置信息
