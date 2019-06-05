@@ -280,6 +280,19 @@ public class OrganizationConstants {
 
 ## 四：读取问题
 
+```pro
+1.  ConfigurationProperties注解的locations属性在1.5.X以后没有了，不能指定locations来加载yml文件
+
+
+2. PropertySource注解只支持yml文件加载，详细见官方文档： https://docs.spring.io/spring-boot/docs/current/reference/htmlsingle/#boot-features-external-config-yaml-shortcomings
+
+
+3. Spring Framework有两个类加载YAML文件，YamlPropertiesFactoryBean和YamlMapFactoryBean
+
+
+4. 可以通过PropertySourcePlaceholderConfigurer来加载yml文件，暴露yml文件到spring environment
+```
+
 > 将yml中的内容放入，application.yml文件中正常，自定义novellist.yml文件中无法找到。使用@ConfigurationProperties注解，只能用于properties文件。
 >
 > 解决方式：可以通过PropertySourcePlaceholderConfigurer来加载yml文件，暴露yml文件到spring environment，如下：
