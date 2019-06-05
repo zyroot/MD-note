@@ -141,3 +141,191 @@ bootstrap.yml 先于 application.yml 加载
 为何需要把 config server 的信息放在 bootstrap.yml 里？
 
 当使用 Spring Cloud 的时候，配置信息一般是从 config server 加载的，为了取得配置信息（比如密码等），你需要一些提早的或引导配置。因此，把 config server 信息放在 bootstrap.yml，用来加载真正需要的配置信息
+
+# 读取自定义的yml文件
+
+## 一、自定义yml
+
+```yaml
+client:
+ id: 95279527
+ tel: 18290569081
+ password: 123456
+ photo: http://www.baidu.com
+ sex: 1
+ status: 0
+ delFlag: 0
+ name: uniqueUser
+ post: 派单员
+ onlineStatus: 0
+ userNo: F9527
+organization:
+  id: 9527
+  name: 9527组织
+  vest:
+  outerId:
+  cityId: 510100
+  level: A
+  shopType: 1
+  cityName: 9527派单员城市
+```
+
+## 二、实体配置类
+
+```java
+package com.dftcmedia.tckk.microservice.ots.orderdispatch.entity.constants;
+
+import lombok.Data;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.context.annotation.PropertySource;
+import org.springframework.stereotype.Component;
+
+/**
+ * <p>DESC: 替补派单业务员</p>
+ * <p>DATE: 2019/6/5</p>
+ * <p>VERSION:1.0.0</p>
+ * <p>@AUTHOR: ZhengYong</p>
+ */
+@Data
+@Component
+@ConfigurationProperties(prefix="client")
+@PropertySource(value = "classpath:uniuser.yml",
+                ignoreResourceNotFound = true,
+                encoding = "utf-8")
+public class ClientUserConstants {
+
+    private Long id;
+
+    private String tel;
+
+    private String password;
+
+    private String photo;
+
+    private Integer sex;
+
+    private Integer status;
+
+    private Integer delFlag;
+
+    private String name;
+  
+    private String post;
+
+    private Integer onlineStatus;
+
+    private String userNo;
+}
+
+```
+
+```java
+package com.dftcmedia.tckk.microservice.ots.orderdispatch.entity.constants;
+
+import lombok.Data;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.context.annotation.PropertySource;
+import org.springframework.stereotype.Component;
+
+/**
+ * <p>DESC: 组织配置文件读取</p>
+ * <p>DATE: 2019/6/5</p>
+ * <p>VERSION:1.0.0</p>
+ * <p>@AUTHOR: ZhengYong</p>
+ */
+@Data
+@Component
+@ConfigurationProperties(prefix = "organization")
+@PropertySource(value = "classpath:uniuser.yml",
+                ignoreResourceNotFound = true,
+                encoding = "utf-8")
+public class OrganizationConstants {
+
+    private Long id;
+
+    private String name;
+
+    private Long vest;
+
+    private Long outerId;
+
+    /**
+     * 办事处城市id
+     */
+    private Integer cityId;
+
+    private String level;
+
+    private Integer shopType;
+
+    private String cityName;
+
+}
+```
+
+## 三、解读
+
+（1）@ConfigurationProperties(prefix = "organization")
+
+读取前缀为organization的yml值
+
+（2）@PropertySource
+
+```java
+ @PropertySource(value = "classpath:uniuser.yml",
+ 			   ignoreResourceNotFound = true,
+            	encoding = "utf-8")
+```
+读取自定义配置文件
+
+## 四：读取问题
+
+> 将yml中的内容放入，application.yml文件中正常，自定义novellist.yml文件中无法找到。使用@ConfigurationProperties注解，只能用于properties文件。
+>
+> 解决方式：可以通过PropertySourcePlaceholderConfigurer来加载yml文件，暴露yml文件到spring environment，如下：
+
+```java
+package com.dftcmedia.tckk.microservice.ots.common.config;
+
+import org.springframework.beans.factory.config.YamlPropertiesFactoryBean;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.support.PropertySourcesPlaceholderConfigurer;
+import org.springframework.core.io.ClassPathResource;
+
+/**
+ * <p>DESC: </p>
+ * <p>DATE: 2019/6/5</p>
+ * <p>VERSION:1.0.0</p>
+ * <p>@AUTHOR: ZhengYong</p>
+ */
+@Configuration
+public class LoadFileConfig {
+    @Bean
+    public static PropertySourcesPlaceholderConfigurer properties() {
+        PropertySourcesPlaceholderConfigurer configurer = new PropertySourcesPlaceholderConfigurer();
+        YamlPropertiesFactoryBean yaml = new YamlPropertiesFactoryBean();
+        yaml.setResources(new ClassPathResource("uniuser.yml"));
+        configurer.setProperties(yaml.getObject());
+        configurer.setFileEncoding("utf-8");
+        return configurer;
+    }
+}
+
+```
+
+## 五：中文乱码问题
+
+解决：
+
+（1）
+
+@PropertySource(value = {"路径"},ignoreResourceNotFound = true,encoding = "utf-8")
+
+ （2）
+
+文件编码格式设置为（file encodeing = utf-8）
+
+   (3)
+
+configurer.setFileEncoding("utf-8");
