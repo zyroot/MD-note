@@ -294,3 +294,14 @@ mysql> SELECT * FROM test;
 | 龟    | 数百岁     | unsigned smallint | 2    | 无符号值：0 到 65535      |
 | 恐龙化石 | 数千万年    | unsigned int      | 4    | 无符号值：0 到约 42.9 亿    |
 | 太阳   | 约 50 亿年 | unsigned bigint   | 8    | 无符号值：0 到约 10 的 19次方 |
+
+# 三、mysql字符集utf8 和utf8mb4编码问题
+
+最近看了一篇文章是关于Mysql中utf-8编码问题的，我们在Mysql中用到的utf8实际上不是真正的 UTF-8，在Mysql中utf8mb4才是真正的UTF-8。
+
+    在有些地方看到说utf8mb4相比于utf8是为了解决emoji（就是我们聊天的时候笑脸表情）问题，感觉这种说法对但是不完全对。utf8mb4相当于utf8的一个扩展，出现utf8mb4是因为现在Mysql中的utf8已经不能满足我们对字符编码的需求了。
+
+    Mysql从4.1 版本开始支持 UTF-8，最大字符长度为 3 字节，三个字节的 UTF-8 最大能编码的 Unicode 字符是 0xFFFF，也就是 Unicode 中的基本多文平面（BMP）。也就是说，任何不在基本多文平面的 Unicode字符，都无法使用MySQL原有的 utf8 字符集存储。这些不在BMP中的字符包括哪些呢？最常见的就是Emoji 表情（Emoji 是一种特殊的 Unicode 编码，常见于 ios 和 android 手机上），和一些不常用的汉字，以及任何新增的 Unicode 字符等等。于是在MySQL5.5.3版本后就有了utf8mb4，它支持四个字节编码在utf8消耗空间一些，但是它可以支持跟多的字符。
+
+    所以，在我们最新设计数据库的时候最好使用utf8mb4字符集，同时使用varchar代替char类型。
+
