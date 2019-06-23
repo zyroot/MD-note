@@ -1,4 +1,4 @@
-# spring-aop
+# spring-aop原理
 
 **简介**：
 
@@ -103,7 +103,23 @@ people talk业务方法
 spreak chinese业务方法
 事物结束
 
+
+
+
+
+
+
 # Java AOP
+
+apo专业术语图解：
+
+![](aop_resources/apo专业术语.png)
+
+> 通知方法为：要写入的方法
+>
+> 连接点图中一共16个
+
+
 
 **开发模式@Aspect注解说明**
 
@@ -112,6 +128,8 @@ spreak chinese业务方法
 2.1 @Aspect
 
 作用是把当前类标识为一个切面供容器读取
+
+
 
 2.2 @Before
 标识一个前置增强方法，相当于BeforeAdvice的功能，相似功能的还有
@@ -128,11 +146,23 @@ spreak chinese业务方法
 
 final增强，不管是抛出异常或者正常退出都会执行
 
+
+
 2.6 @Around
 
-环绕增强，相当于MethodInterceptor
+环绕增强，相当于MethodInterceptor，前面四种的合体：
 
-2.7 @DeclareParents
+```java
+try{
+  @before 前置通知
+  method.invoke();
+  @afterreturning 返回通知
+}catch(e){
+  @afterthrowing 异常通知
+}finally{
+  @after  后置通知
+}
+```
 
 
 
@@ -314,10 +344,180 @@ public void examples..*.chop(..)
 
 非操作，求反集，也可以写成not
 
-作者：permike 
-来源：CSDN 
-原文：https://blog.csdn.net/permike/article/details/88863753 
-版权声明：本文为博主原创文章，转载请附上博文链接！
+
+
+## 6 实际使用：
+
+```java
+package com.example.aop.aop.aspect;
+
+import org.aspectj.lang.JoinPoint;
+import org.aspectj.lang.ProceedingJoinPoint;
+import org.aspectj.lang.annotation.*;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
+
+/**
+ * DESC: *
+ * Created by zhengyong on 2019/6/23.
+ */
+@Aspect
+@Component
+//多切面时，使用order注解来排序，执行规则是，先进后出。（面包反弹）
+@Order(1)
+public class MyAspect {
+
+    /**
+     * 抽取重复切入点
+     * 要求：public void 方法 且未实现的方法
+     */
+    @Pointcut("execution(public Object com..service.MethodBusiness.*(int,int))")
+    public void testPoint(){}
+
+
+    /**
+     * 告诉spring何时执行
+     * try{
+     *   @before 前置通知
+     *   method.invoke();
+     *   @afterreturning 返回通知
+     * }catch(e){
+     *   @afterthrowing 异常通知
+     * }finally{
+     *   @after 后置通知
+     * }
+     *
+     * @Before         目标方法执行前
+     * @AfterReturning 目标方法正常返回
+     * @AfterThrowing  目标方法抛出异常后
+     * @After          最后执行
+     * @Around          环绕
+     */
+    //before表示何时执行，切入点表达式表示何时执行
+    @Before(value = "testPoint()")
+    public static void testBefore() {
+        System.out.println("切面，前置通知");
+    }
+
+    /**
+     * 切入点表达式：
+     * 固定格式： execution(访问权限符 返回值类型 方法类全名（参数列表）)
+     * 通配符：
+     *      * :
+     *         1)匹配一个或者多个字符 execution(public Object com.example.aop.aop.service.Method*.*(int,int))
+     *         2)匹配任意一个参数(可能会重载无法切入) execution(public Object com.example.aop.aop.service.Method*.*(int,*))
+     *         3）只能匹配一层路径
+     *         4）*不能代替访问权限符，可以省略
+     *      ..:
+     *         1）匹配任意个数任意参数（表达式开头不能已双点开始）
+     *         execution(public Object com.example.aop.aop.service.MethodBusiness.*(..))
+     *         2)匹配任意多层路径
+     *         execution(public Object com..service.MethodBusiness.*(int,int))
+     * 最精确的
+     *  execution(public Object com.example.aop.aop.service.MethodBusiness.add(int,int))
+     * 最模糊的
+     *  execution(* *.*(..)) 千万别写
+     *
+     *  aferReturning可以拿到结果信息
+     *  Object result 方法参数列表中写入接受结果的类型
+     *  告诉spring 返回结果用什么参数来接收：returning = "result"
+     */
+    @AfterReturning(value = "execution(public Object com.example.aop.aop.service.Method*.*(*,*))",returning = "result")
+    public static void testAfterReturning(JoinPoint joinPoint,Object result) {
+        System.out.println("切面，返回通知,方法名："+joinPoint.getSignature().getName()+",结果是："+result);
+    }
+
+    /**
+     * 通知执行顺序
+     *  正常：@before @after（后置通知）  @aferReturnin(返回通知)
+     *  异常：@before @after（后置通知）   @aferThrowing（异常通知）
+     *
+     * @AfterThrowing 可以获取异常信息
+     */
+    @AfterThrowing(value = "execution(public Object com.example.aop.aop.service.MethodBusiness.*(int,int))",throwing ="e")
+    public static void testAfterThrowing(JoinPoint joinPoint,Exception e){
+        System.out.println("切面，异常通知,异常是："+e);
+    }
+
+    /**
+     * joinPoint获取 方法名和  方法参数
+     */
+    @After(value = "execution(public Object com.example.aop.aop.service.MethodBusiness.*(..))")
+    public static void testAfter(JoinPoint joinPoint){
+        //获取签名---获取方法名
+        String name = joinPoint.getSignature().getName();
+        System.out.println("方法名："+name);
+        Object[] args = joinPoint.getArgs();
+        for (Object arg : args) {
+            System.out.println("方法参数列表："+arg);
+        }
+        System.out.println("切面，后置通知");
+    }
+
+    /**
+     * 环绕方法就是动态代理
+     * 和普通方法的却别就是，会直接影响目标方法
+     *
+     * @param joinPoint
+     * @return
+     * @throws Throwable
+     */
+    @Around(value = "execution(public Object com.example.aop.aop.service.MethodBusiness.*(..))")
+    public static Object testAround(ProceedingJoinPoint joinPoint) throws Throwable{
+        Object[] args = joinPoint.getArgs();
+        Object proceed = null;
+        try{
+            //before
+            //利用反射，执行目标方法，需要参数,就是mothod.invoke()
+             proceed= joinPoint.proceed(args);
+             //afterReturning
+        }catch(Exception e){
+            //afterThrowing
+            //如果有异常，要抛出去（看需求）
+        }finally {
+            //after
+        }
+        //反射调用后，返回值一定也要返回出去
+        return proceed;
+    }
+}
+
+```
+
+## 多切面执行顺序图解：
+
+==面包反弹原理== 
+
+![](aop_resources/多切面执行顺序.png)
+
+## aop获取注解上的值
+
+```java
+    @Before(value = "@annotation(com.example.aop.aop.annotation.DoSomething)")
+    public void before(JoinPoint joinPoint){
+        //获取签名
+        Signature signature = joinPoint.getSignature();
+        //获取强转为方法签名
+        MethodSignature methodSignature = (MethodSignature) signature;
+        //获取方法上的注解
+        DoSomething annotation = methodSignature.getMethod().getAnnotation(DoSomething.class);
+        //获取注解上的参数的值
+        if(annotation.isDoSomething()){
+            System.out.println("【老铁你来了】");
+        }else{
+            System.out.println("【给老子滚蛋】");
+        }
+
+        //获取参数
+        Object[] args = joinPoint.getArgs();
+        for (Object arg : args) {
+            System.out.println("参数是："+arg);
+        }
+        System.out.println("注解前置方法");
+    }
+```
+
+
 
 
 
