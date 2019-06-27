@@ -1042,8 +1042,11 @@ Negative matches:（没有启动，没有匹配成功的自动配置类）
 ```yaml
 
 spring:
+  mvc:
+	##时间格式序列化时，str-->date 指定（str）日期格式
+    date-format: yyyy-MM-dd HH:mm:ss
   jackson:
-    #日期格式化
+    #日期格式化 输出
     date-format: yyyy-MM-dd HH:mm:ss
     serialization:
        #格式化输出 
@@ -1962,6 +1965,44 @@ public class MyMvcConfig extends WebMvcConfigurerAdapter {
 
 ​	效果：SpringMVC的自动配置和我们的扩展配置都会起作用；
 
+自定义mvc的convert,
+
+> convet ----set方法---反序列化jsondescSerilizer
+
+```java
+/**
+ * <p>DESC: </p>
+ * <p>DATE: 2019/6/27</p>
+ * <p>VERSION:1.0.0</p>
+ * <p>@AUTHOR: ZhengYong</p>
+ */
+@Configuration
+public class MvcConfig implements WebMvcConfigurer {
+    
+    @Bean
+    public Converter<String, Date> stringToDate(){
+        return new Converter<String, Date>() {
+            @Override
+            public Date convert(String s) {
+                if(StringUtils.isNotBlank(s)){
+                    SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                    try {
+                        Date parse = simpleDateFormat.parse(s);
+                        return parse;
+                    } catch (ParseException e) {
+                        e.printStackTrace();
+                    }
+                }
+                return null;
+            }
+        };
+    }
+
+}
+```
+
+
+
 ### 2.1、**处理跨域问题：**
 
 ```java
@@ -2513,7 +2554,8 @@ insert的公共片段在div标签中
 ```yaml
 spring:
 	mvc:
-    	date-format: 
+		##时间格式序列化时，str-->date 指定（str）日期格式
+    	date-format: yyyy-MM-dd HH:mm:ss
 ```
 
 默认日期是按照/的方式；
