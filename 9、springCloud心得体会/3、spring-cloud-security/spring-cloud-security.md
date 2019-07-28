@@ -372,4 +372,230 @@ public class BrowserSecurityController {
 
 ## 二：自定义登录成功处理
 
+自定义登录成功的配置抽象类：AbstractAuthenticationTargetUrlRequestHandler（顶层）
+
+继承这个类的子类SavedRequestAwareAuthenticationSuccessHandler，并实现方法
+
+```java
+package com.eim.demo.config;
+
+import com.eim.demo.properties.MySecurityProperties;
+import com.eim.demo.properties.ResponseTypeEnum;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.http.MediaType;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
+import org.springframework.stereotype.Component;
+
+import javax.annotation.Resource;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+
+/**
+ * <p>DESC: 授权成功处理器</p>
+ * <p>DATE: 2019-07-25 15:37</p>
+ * <p>VERSION:2.0.0</p>
+ * <p>@AUTHOR: ZhengYong</p>
+ */
+@Component
+public class MyAuthenticationSuccessHandler extends SavedRequestAwareAuthenticationSuccessHandler {
+
+    private final ObjectMapper objectMapper;
+
+    public MyAuthenticationSuccessHandler(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
+
+  	//自定义配置类
+    @Resource
+    private MySecurityProperties mySecurityProperties;
+
+    @Override
+    public void onAuthenticationSuccess(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse, Authentication authentication) throws IOException, ServletException {
+      	//判断是返回json还是默认跳转到上请求
+        if(ResponseTypeEnum.JSON.equals(mySecurityProperties.getBrowser().getType())){
+            String valueAsString = objectMapper.writeValueAsString(authentication);
+            httpServletResponse.setContentType(MediaType.APPLICATION_JSON_UTF8_VALUE);
+            httpServletResponse.getWriter().write(valueAsString);
+        }
+        super.onAuthenticationSuccess(httpServletRequest,httpServletResponse,authentication);
+    }
+}
+```
+
+
+
 ## 三：自定义登录失败处理
+
+自定义登录失败抽象类：SimpleUrlAuthenticationFailureHandler（顶层）
+
+```java
+package com.eim.demo.config;
+
+import com.eim.demo.properties.MySecurityProperties;
+import com.eim.demo.properties.ResponseTypeEnum;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler;
+import org.springframework.stereotype.Component;
+
+import javax.annotation.Resource;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+
+/**
+ * <p>DESC: 自定义认证失败</p>
+ * <p>DATE: 2019-07-25 16:27</p>
+ * <p>VERSION:2.0.0</p>
+ * <p>@AUTHOR: ZhengYong</p>
+ */
+@Component
+public class MyAuthenticationFailureHandler extends SimpleUrlAuthenticationFailureHandler {
+
+    @Resource
+    private ObjectMapper objectMapper;
+
+  	//配置类
+    @Resource
+    private MySecurityProperties mySecurityProperties;
+
+  	//AuthenticationException 返回异常信息
+    @Override
+    public void onAuthenticationFailure(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse, AuthenticationException e) throws IOException, ServletException {
+      	//判断返回json,还是默认跳转
+        if(ResponseTypeEnum.JSON.equals(mySecurityProperties.getBrowser().getType())){
+            String value = objectMapper.writeValueAsString(e);
+            httpServletResponse.setStatus(HttpStatus.UNAUTHORIZED.value());
+            httpServletResponse.setContentType(MediaType.APPLICATION_JSON_UTF8_VALUE);
+            httpServletResponse.getWriter().write(value);
+        }
+        super.onAuthenticationFailure(httpServletRequest,httpServletResponse,e);
+    }
+}
+```
+
+## 四：生效自定义登录成功、失败
+
+```java
+/**
+ * <p>DESC: web安全配置</p>
+ * <p>DATE: 2019-07-24 16:47</p>
+ * <p>VERSION:2.0.0</p>
+ * <p>@AUTHOR: ZhengYong</p>
+ */
+@Component
+public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
+
+    @Resource
+    private MySecurityProperties securityProperties;
+
+  	//注入自定成功处理器
+    @Resource
+    private MyAuthenticationSuccessHandler myAuthenticationSuccessHandler;
+	//注入自定失败处理器
+    @Resource
+    private MyAuthenticationFailureHandler myAuthenticationFailureHandler;
+
+    @Override
+    protected void configure(HttpSecurity http) throws Exception {
+        http.formLogin()
+                .loginPage("/authentication/require")
+                //form表单登录请求
+                .loginProcessingUrl("/authentication/login")
+                //自定义成功处理器
+                .successHandler(myAuthenticationSuccessHandler)
+                //自定义失败处理器
+                .failureHandler(myAuthenticationFailureHandler)
+                .and().authorizeRequests()
+                .antMatchers("/authentication/require",securityProperties.getBrowser().getLoginPage()).permitAll()
+                .anyRequest().authenticated()
+                .and()
+                .csrf().disable();
+    }
+}
+```
+
+# spring-security源码流程详解
+
+## 一：认证处理流程说明
+
+![](spring-cloud-security-resouces/认证流程.png)
+
+
+
+`AuthenticationManager`用于管理 `AuthenticationProvider`
+
+AuthenticationManager拿到所有的AuthenticationProvider,一个一个取出来，询问当前provider是否支持当前认证方式（传入的Authentication），
+
+支持则进入认证，列如表单登录，最终会调用UserDetailsService接口实现类中loadUserByUserName方法(和我们自定义的认证逻辑接上了),	
+
+如果所有都成功，会创建一个SuccessAuthentication，此时会反向传递到起始位置，如果认证成功，调用我们自己的成功处理器，如果认证失败，调用我们自己失败处理器。
+
+## 二：认证结果如何在多个请求之间共享
+
+![](spring-cloud-security-resouces/请求之间的共享.png)
+
+secutityContext和SeCurityHolder,
+
+将我们认证成功的Authentication放在SecurityContext和SecurityContextHolder
+
+SecurityContextHolder中有静态方法，可以将同线程中存入认证信息，和取出认证信息
+
+
+
+## 三：获取用户信息
+
+![](spring-cloud-security-resouces/最后过滤器.png)
+
+
+
+securityContextPersistenceFilter
+
+作用：
+
+①：请求进来的时候，检查session中是否有SecurityContext,如果有，就把securityContext拿出来，放入线程中
+
+②：最后响应前，检查线程中是否是有securityContext,如果有，就拿出来，放入session中
+
+因为，是在一个线程中完成的，所以可以任意位置通过SecurityContext中获取用户信息
+
+
+
+获取用户信息eg(三种):
+
+```java
+    @GetMapping("me")
+    public Object me(){
+        return SecurityContextHolder.getContext().getAuthentication();
+    }
+    @GetMapping("mi")
+    public Object mi(Authentication authentication){
+        return authentication;
+    }
+    @GetMapping("mp")
+    public Object mp(@AuthenticationPrincipal UserDetails user){
+        return user;
+    }
+```
+
+# 实现图片验证码
+
+## 一：开发生成图形验证码接口
+
+1）：生成图形验证码
+
+​	 根据随机数生成验图片
+
+​	将随机数存入session中
+
+​	再将生成的图片写到接口的响应中
+
+## 二：在认证流程中加入图形验证码校验
+
+## 三：重构代码
