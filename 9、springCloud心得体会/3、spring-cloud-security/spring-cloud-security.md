@@ -588,7 +588,7 @@ securityContextPersistenceFilter
 
 ## 一：开发生成图形验证码接口
 
-1）：生成图形验证码
+### 1）：生成图形验证码
 
 ​	 根据随机数生成验图片
 
@@ -596,6 +596,338 @@ securityContextPersistenceFilter
 
 ​	再将生成的图片写到接口的响应中
 
+a、新建图片对象
+
+```java
+package com.eim.demo.validate;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.awt.image.BufferedImage;
+import java.time.LocalDateTime;
+
+/**
+ * <p>@Description:图片验证码对象</p>
+ * <p>@Author: zhengyong</p>
+ * <p>@Date: 2019/7/28 22:50</p>
+ * <p>@Version: 1.0.0</p>
+ **/
+@AllArgsConstructor
+@NoArgsConstructor
+@Data
+public class ImageCode {
+    /**
+     * 图片对象
+     */
+    private BufferedImage image;
+    /**
+     * 验证码
+     */
+    private String code;
+    /**
+     * 过期时间
+     */
+    private LocalDateTime expireTime;
+
+    public ImageCode(BufferedImage image, String code, int expireTime) {
+        this.image = image;
+        this.code = code;
+        this.expireTime = LocalDateTime.now().plusSeconds(expireTime);
+    }
+}
+
+```
+
+b、新建验证码controller
+
+```java
+package com.eim.demo.controller;
+
+import com.eim.demo.validate.ImageCode;
+import org.springframework.security.web.authentication.session.SessionAuthenticationStrategy;
+import org.springframework.social.connect.web.HttpSessionSessionStrategy;
+import org.springframework.social.connect.web.SessionStrategy;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.context.request.ServletRequestAttributes;
+import org.springframework.web.context.request.ServletWebRequest;
+
+import javax.imageio.ImageIO;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.util.Random;
+
+/**
+ * <p>@Description:图片验证码控制器</p>
+ * <p>@Author: zhengyong</p>
+ * <p>@Date: 2019/7/28 23:02</p>
+ * <p>@Version: 1.0.0</p>
+ **/
+@RestController
+public class CodeController {
+    
+    private static final String SESSION_KEY= "IMAGE_CODE_SESSION_KEY";
+    //操作session
+    private SessionStrategy strategy = new HttpSessionSessionStrategy();
+
+    @GetMapping("/code/image")
+    public void createCode(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        //获取图片验证码对象
+        ImageCode imageCode = createImageCode();
+        //往session中存入code
+        strategy.setAttribute(new ServletWebRequest(request),SESSION_KEY,imageCode.getCode());
+        //以流的方式写回前端
+        ImageIO.write(imageCode.getImage(), "JPEG", response.getOutputStream());
+    }
+
+    /**
+     * 创建图片验证码
+     * @return imagecode
+     */
+    private ImageCode createImageCode(){
+        BufferedImage img=new BufferedImage(60, 30, BufferedImage.TYPE_INT_RGB);
+        //获取Graphic对象
+        Graphics g = img.getGraphics();
+        //设置背景色
+        g.setColor(Color.WHITE);
+        g.fillRect(0, 0, 60, 30);
+
+        Random r=new Random();
+        String rdStr= "";
+        for(int i=0;i<4;i++){
+            int a=r.nextInt(10);	//生成0-9之间的一个数字
+            int y=10+r.nextInt(20);	//y坐标随机
+            rdStr = rdStr+a;
+            //每个数字不同的颜色
+            g.setColor(new Color(r.nextInt(256), r.nextInt(256), r.nextInt(256)));
+            g.drawString(a+"", i*10, y);
+        }
+
+        //话干扰线
+        for(int i=0;i<10;i++){
+            g.setColor(new Color(r.nextInt(256), r.nextInt(256), r.nextInt(256)));
+            g.drawLine(10+r.nextInt(60), 5+r.nextInt(30), 10+r.nextInt(60), 5+r.nextInt(30));
+        }
+        //让图片生效
+        g.dispose();
+
+        return new ImageCode(img,rdStr,10);
+    }
+
+}
+
+```
+
+
+
 ## 二：在认证流程中加入图形验证码校验
+
+### 2）、新建自定义过滤器
+
+写一个validateCodeFilter去继承OncePerRequestFilter（保证我们的过滤器只会被调用一次）
+
+```java
+package com.eim.demo.validate;
+
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.security.web.authentication.AuthenticationFailureHandler;
+import org.springframework.social.connect.web.HttpSessionSessionStrategy;
+import org.springframework.social.connect.web.SessionStrategy;
+import org.springframework.stereotype.Component;
+import org.springframework.web.bind.ServletRequestBindingException;
+import org.springframework.web.bind.ServletRequestUtils;
+import org.springframework.web.context.request.ServletWebRequest;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import javax.annotation.Resource;
+import javax.servlet.FilterChain;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+
+/**
+ * <p>@Description:自定义验证码过滤器</p>
+ * <p>@Author: zhengyong</p>
+ * <p>@Date: 2019/7/30 21:45</p>
+ * <p>@Version: 1.0.0</p>
+ **/
+@Component
+public class ValidateCodeFilter extends OncePerRequestFilter {
+
+    private static final String SESSION_KEY = "IMAGE_CODE_SESSION_KEY";
+
+    private SessionStrategy sessionStrategy = new HttpSessionSessionStrategy();
+
+    /**
+     * 失败处理器
+     */
+    @Resource
+    private AuthenticationFailureHandler failureHandler;
+
+    /**
+     * 业务逻辑
+     *
+     * @param request     request
+     * @param response    response
+     * @param filterChain 過濾
+     * @throws ServletException 異常
+     * @throws IOException      異常
+     */
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
+        //拦截符合标准的请求
+        if (StringUtils.equals("/authentication/login", request.getRequestURI())
+                && StringUtils.endsWithIgnoreCase(request.getMethod(), "post")) {
+            try {
+                //校验逻辑
+                validate(new ServletWebRequest(request));
+                //自定义异常
+            } catch (ValidateException e) {
+                //失败处理逻辑
+                failureHandler.onAuthenticationFailure(request, response, e);
+                return;
+            }
+        }
+        //放行
+        filterChain.doFilter(request, response);
+    }
+
+    /**
+     * 校验逻辑
+     *
+     * @param request ServletWebRequest
+     * @throws ServletRequestBindingException 异常
+     */
+    private void validate(ServletWebRequest request) throws ServletRequestBindingException {
+        //从session中获取imageCode对象
+        ImageCode codeInSession = (ImageCode) sessionStrategy.getAttribute(request, SESSION_KEY);
+        //从请求中获取验证码数字
+        String codeInRequest = ServletRequestUtils.getStringParameter(request.getRequest(), "imageCode");
+
+        if (StringUtils.isNotBlank(codeInRequest)) {
+            throw new ValidateException("验证码不能为空");
+        }
+        if (StringUtils.isNotBlank(codeInSession.getCode())) {
+            throw new ValidateException("验证码不存在");
+        }
+        if (codeInSession.isExpired()) {
+            sessionStrategy.removeAttribute(request, SESSION_KEY);
+            throw new ValidateException("验证码已过期");
+        }
+        if (!StringUtils.equals(codeInRequest, codeInSession.getCode())) {
+            throw new ValidateException("验证码不匹配");
+        }
+        sessionStrategy.removeAttribute(request, SESSION_KEY);
+    }
+}
+```
+
+### 3）、自定义异常继承AuthenticationException
+
+```java
+package com.eim.demo.validate;
+
+import org.springframework.security.core.AuthenticationException;
+
+/**
+ * <p>@Description:验证码异常信息</p>
+ * <p>@Author: zhengyong</p>
+ * <p>@Date: 2019/7/30 21:52</p>
+ * <p>@Version: 1.0.0</p>
+ **/
+public class ValidateException extends AuthenticationException {
+    public ValidateException(String msg, Throwable t) {
+        super(msg, t);
+    }
+
+    public ValidateException(String msg) {
+        super(msg);
+    }
+}
+```
+
+### 4）、web安全配置，使自定义filter生效
+
+* 核心代码
+
+>```java
+>    //自定义过滤器
+>    ValidateCodeFilter filter = new ValidateCodeFilter();
+>    //设置失败处理器
+>    filter.setFailureHandler(myAuthenticationFailureHandler);
+>    //在用户名密码过滤器前面加上自定义过滤器
+>    http.addFilterBefore(filter, UsernamePasswordAuthenticationFilter.class)
+>```
+
+* 完整实例：
+
+```java
+package com.eim.demo.config;
+
+import com.eim.demo.properties.MySecurityProperties;
+import com.eim.demo.validate.ValidateCodeFilter;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.stereotype.Component;
+
+import javax.annotation.Resource;
+
+/**
+ * <p>DESC: web安全配置</p>
+ * <p>DATE: 2019-07-24 16:47</p>
+ * <p>VERSION:2.0.0</p>
+ * <p>@AUTHOR: ZhengYong</p>
+ */
+@Component
+public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
+
+    @Resource
+    private MySecurityProperties securityProperties;
+
+    @Resource
+    private MyAuthenticationSuccessHandler myAuthenticationSuccessHandler;
+
+    @Resource
+    private MyAuthenticationFailureHandler myAuthenticationFailureHandler;
+
+
+    @Override
+    protected void configure(HttpSecurity http) throws Exception {
+
+        //自定义过滤器
+        ValidateCodeFilter filter = new ValidateCodeFilter();
+        //设置失败处理器
+        filter.setFailureHandler(myAuthenticationFailureHandler);
+
+        http
+                //在用户名密码过滤器前面加上自定义过滤器
+                .addFilterBefore(filter, UsernamePasswordAuthenticationFilter.class)
+                .formLogin()
+                    .loginPage("/authentication/require")
+                    //form表单登录请求
+                    .loginProcessingUrl("/authentication/login")
+                    //自定义成功处理器
+                    .successHandler(myAuthenticationSuccessHandler)
+                    //自定义失败处理器
+                    .failureHandler(myAuthenticationFailureHandler)
+                .and()
+                    .authorizeRequests()
+                    .antMatchers("/code/image","/authentication/require",securityProperties.getBrowser().getLoginPage()).permitAll()
+                    .anyRequest().authenticated()
+                .and()
+                    .csrf().disable();
+    }
+}
+```
+
+
 
 ## 三：重构代码
