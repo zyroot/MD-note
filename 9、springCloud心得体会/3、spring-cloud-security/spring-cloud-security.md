@@ -931,3 +931,12 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 
 
 ## 三：重构代码
+
+一：验证码基本参数可配
+
+![](spring-cloud-security-resouces/多级参数配置.png)
+
+二：验证码拦截的接口可配
+
+三：验证码的生成逻辑可配
+
