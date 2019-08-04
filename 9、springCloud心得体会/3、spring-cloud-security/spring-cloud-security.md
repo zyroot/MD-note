@@ -932,11 +932,392 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 
 ## 三：重构代码
 
-一：验证码基本参数可配
+### 一：验证码基本参数可配
 
 ![](spring-cloud-security-resouces/多级参数配置.png)
 
-二：验证码拦截的接口可配
+#### 1）、默认配置
 
-三：验证码的生成逻辑可配
+新建配置对象类验证码的基类：
+
+```java
+/**
+ * <p>DESC: 验证码配置</p>
+ * <p>DATE: 2019-08-01 13:15</p>
+ * <p>VERSION:2.0.0</p>
+ * <p>@AUTHOR: ZhengYong</p>
+ */
+@Data
+public class ValidateCodeProperties {
+
+    private ImageCodeProperties image = new ImageCodeProperties();
+}
+```
+
+新建图片验证码配置类，并赋默认值：
+
+```java
+/**
+ * <p>DESC: 图片验证码配置</p>
+ * <p>DATE: 2019-08-01 13:12</p>
+ * <p>VERSION:2.0.0</p>
+ * <p>@AUTHOR: ZhengYong</p>
+ */
+@Data
+public class ImageCodeProperties {
+    /**
+     * 宽度
+     */
+    private Integer width = 100;
+    /**
+     * 高度
+     */
+    private Integer height = 50;
+    /**
+     *  长度
+     */
+    private Integer length = 4;
+    /**
+     * 过期时间
+     */
+    private int expireTime = 100;
+    /**
+     * 拦截的url
+     */
+    private List<String> url;
+}
+```
+
+在浏览器配置类中添加新增验证码基类
+
+```java
+/**
+ * <p>DESC: 浏览器配置文件</p>
+ * <p>DATE: 2019-07-25 12:38</p>
+ * <p>VERSION:2.0.0</p>
+ * <p>@AUTHOR: ZhengYong</p>
+ */
+@Data
+public class BrowserSecurityProperties {
+
+    private String loginPage = "/default_sigIn.html";
+
+    private ResponseTypeEnum type = JSON;
+
+    private ValidateCodeProperties validateCode = new ValidateCodeProperties();
+
+}
+```
+
+#### 2）、应用参数配置，请求参数可配
+
+在图片验证码生成中添加配置
+
+主要代码：
+
+> int width = ServletRequestUtils.getIntParameter(request, "width", mySecurityProperties.getBrowser().getValidateCode().getImage().getWidth());
+>
+> 从请求中拿width没有的话从配置文件类中获取
+>
+> 这里一共配置了width，height，length，expireTime
+
+```java
+/**
+ * <p>DESC: 图片验证码实现类</p>
+ * <p>DATE: 2019-08-02 16:41</p>
+ * <p>VERSION:2.0.0</p>
+ * <p>@AUTHOR: ZhengYong</p>
+ */
+public class ImageCodeGeneratorImpl implements ImageCodeGenerator{
+
+    @Resource
+    private MySecurityProperties mySecurityProperties;
+
+    /**
+     * 创建图片验证码
+     *
+     * @return 图片验证码对象
+     */
+    @Override
+    public ImageCode createImageCode(HttpServletRequest request) {
+            //从请求中获取宽度和高度，若没有则加载默认配置
+            int width = ServletRequestUtils.getIntParameter(request, "width", mySecurityProperties.getBrowser().getValidateCode().getImage().getWidth());
+            int height = ServletRequestUtils.getIntParameter(request, "height", mySecurityProperties.getBrowser().getValidateCode().getImage().getHeight());
+            Random random = new Random();
+//	    默认背景为黑色
+            BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+//		获取画笔
+            Graphics graphics = image.getGraphics();
+//		默认填充为白色
+            graphics.fillRect(0, 0, width, height);
+//	            验证码是由	数字 字母 干扰线 干扰点组成
+//		文字素材
+            String words = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz123456789";
+            char[] cs = words.toCharArray();
+//		一般验证码为4位数
+//      字母+数字
+            StringBuilder randomStr = new StringBuilder();
+            for (int i = 0; i < mySecurityProperties.getBrowser().getValidateCode().getImage().getLength(); i++) {
+                //设置随机的颜色
+                graphics.setColor(new Color(random.nextInt(256), random.nextInt(256), random.nextInt(256)));
+                graphics.setFont(new Font("微软雅黑", Font.BOLD, 30));
+                char c = cs[random.nextInt(cs.length)];
+                graphics.drawString(c + "", i * 20, 30);
+                randomStr.append(c);
+            }
+            //画干扰线
+            int max = random.nextInt(10);
+            for (int i = 0; i < max; i++) {
+                graphics.setColor(new Color(random.nextInt(256), random.nextInt(256), random.nextInt(256)));
+                graphics.drawLine(random.nextInt(100), random.nextInt(50), random.nextInt(100), random.nextInt(50));
+            }
+//		画干扰点
+            int max2 = random.nextInt(10);
+            for (int i = 0; i < max2; i++) {
+                graphics.setColor(new Color(random.nextInt(256), random.nextInt(256), random.nextInt(256)));
+                graphics.drawOval(random.nextInt(80), random.nextInt(40), random.nextInt(5), random.nextInt(10));
+            }
+
+            return new ImageCode(image, randomStr.toString(), mySecurityProperties.getBrowser().getValidateCode().getImage().getExpireTime());
+    }
+}
+```
+
+### 二：验证码拦截的接口可配
+
+核心代码
+
+>```java
+>    List<String> urlList = mySecurityProperties.getBrowser().getValidateCode().getImage().getUrl();
+>    //判断是否需要校验
+>    AtomicBoolean isFilter = new AtomicBoolean(false);
+>    urlList.forEach(url -> {
+>        if(pathPattern.match(url,request.getRequestURI())){
+>            isFilter.set(true);
+>        }
+>    });
+>```
+
+```java
+/**
+ * <p>@Description:自定义验证码过滤器</p>
+ * <p>@Author: zhengyong</p>
+ * <p>@Date: 2019/7/30 21:45</p>
+ * <p>@Version: 1.0.0</p>
+ **/
+@EqualsAndHashCode(callSuper = true)
+@Data
+@Component
+public class ValidateCodeFilter extends OncePerRequestFilter {
+
+    private static final String SESSION_KEY= "IMAGE_CODE_SESSION_KEY";
+
+    private SessionStrategy sessionStrategy = new HttpSessionSessionStrategy();
+
+    /**
+     * 失败处理器
+     */
+    private AuthenticationFailureHandler failureHandler;
+
+
+    @Resource
+    private MySecurityProperties mySecurityProperties;
+
+    private AntPathMatcher pathPattern = new AntPathMatcher();
+
+    /**
+     * 业务逻辑
+     * @param request request
+     * @param response response
+     * @param filterChain filterChain
+     * @throws ServletException  异常
+     * @throws IOException  异常
+     */
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
+
+        List<String> urlList = mySecurityProperties.getBrowser().getValidateCode().getImage().getUrl();
+        //判断是否需要校验
+        AtomicBoolean isFilter = new AtomicBoolean(false);
+        urlList.forEach(url -> {
+            if(pathPattern.match(url,request.getRequestURI())){
+                isFilter.set(true);
+            }
+        });
+
+        //拦截符合标准的请求
+        if(isFilter.get()){
+            try{
+                //校验逻辑
+                validate(new ServletWebRequest(request));
+            }catch (ValidateException e){
+                //失败处理逻辑
+                failureHandler.onAuthenticationFailure(request,response,e);
+                return;
+            }
+        }
+        //放行
+        filterChain.doFilter(request,response);
+    }
+```
+
+
+
+### 三：验证码的生成逻辑可配
+
+#### 1）、新建一个生成图片验证码接口
+
+```java
+/**
+ * <p>DESC: 图片验证码生成器</p>
+ * <p>DATE: 2019-08-02 16:38</p>
+ * <p>VERSION:2.0.0</p>
+ * <p>@AUTHOR: ZhengYong</p>
+ */
+public interface ImageCodeGenerator {
+
+    /**
+     * 创建图片验证码
+     * @param  request request域
+     * @return 图片验证码对象
+     */
+    ImageCode createImageCode(HttpServletRequest request);
+}
+```
+
+#### 2）、新建一个图片验证码接口实现类
+
+* 注意：没有添加到spring容器中的任何注解
+
+```java
+package com.eim.demo.validate;
+
+import com.eim.demo.properties.MySecurityProperties;
+import org.springframework.web.bind.ServletRequestUtils;
+
+import javax.annotation.Resource;
+import javax.servlet.http.HttpServletRequest;
+import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.util.Random;
+
+/**
+ * <p>DESC: 图片验证码实现类</p>
+ * <p>DATE: 2019-08-02 16:41</p>
+ * <p>VERSION:2.0.0</p>
+ * <p>@AUTHOR: ZhengYong</p>
+ */
+public class ImageCodeGeneratorImpl implements ImageCodeGenerator{
+
+    @Resource
+    private MySecurityProperties mySecurityProperties;
+
+    /**
+     * 创建图片验证码
+     *
+     * @return 图片验证码对象
+     */
+    @Override
+    public ImageCode createImageCode(HttpServletRequest request) {
+            //从请求中获取宽度和高度，若没有则加载默认配置
+            int width = ServletRequestUtils.getIntParameter(request, "width", mySecurityProperties.getBrowser().getValidateCode().getImage().getWidth());
+            int height = ServletRequestUtils.getIntParameter(request, "height", mySecurityProperties.getBrowser().getValidateCode().getImage().getHeight());
+            Random random = new Random();
+//	    默认背景为黑色
+            BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+//		获取画笔
+            Graphics graphics = image.getGraphics();
+//		默认填充为白色
+            graphics.fillRect(0, 0, width, height);
+//	            验证码是由	数字 字母 干扰线 干扰点组成
+//		文字素材
+            String words = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz123456789";
+            char[] cs = words.toCharArray();
+//		一般验证码为4位数
+//      字母+数字
+            StringBuilder randomStr = new StringBuilder();
+            for (int i = 0; i < mySecurityProperties.getBrowser().getValidateCode().getImage().getLength(); i++) {
+                //设置随机的颜色
+                graphics.setColor(new Color(random.nextInt(256), random.nextInt(256), random.nextInt(256)));
+                graphics.setFont(new Font("微软雅黑", Font.BOLD, 30));
+                char c = cs[random.nextInt(cs.length)];
+                graphics.drawString(c + "", i * 20, 30);
+                randomStr.append(c);
+            }
+            //画干扰线
+            int max = random.nextInt(10);
+            for (int i = 0; i < max; i++) {
+                graphics.setColor(new Color(random.nextInt(256), random.nextInt(256), random.nextInt(256)));
+                graphics.drawLine(random.nextInt(100), random.nextInt(50), random.nextInt(100), random.nextInt(50));
+            }
+//		画干扰点
+            int max2 = random.nextInt(10);
+            for (int i = 0; i < max2; i++) {
+                graphics.setColor(new Color(random.nextInt(256), random.nextInt(256), random.nextInt(256)));
+                graphics.drawOval(random.nextInt(80), random.nextInt(40), random.nextInt(5), random.nextInt(10));
+            }
+
+            return new ImageCode(image, randomStr.toString(), mySecurityProperties.getBrowser().getValidateCode().getImage().getExpireTime());
+    }
+}
+```
+
+#### 3）、图片验证码注入spring容器配置
+
+```java
+package com.eim.demo.validate;
+
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+/**
+ * <p>DESC: 图片验证码注入配置‘</p>
+ * <p>DATE: 2019-08-02 16:44</p>
+ * <p>VERSION:2.0.0</p>
+ * <p>@AUTHOR: ZhengYong</p>
+ */
+@Configuration
+public class ImageCodeConfig {
+
+    /**
+     * 注入默认的图片验证码生成器
+     * @return 图片验证码
+     */
+    @Bean
+    //在spring中缺失一个bean叫imageCodeGenerator的时候自动注入spring容器
+    @ConditionalOnMissingBean(name = "imageCodeGenerator")
+    public ImageCodeGenerator imageCodeGenerator(){
+        return new ImageCodeGeneratorImpl();
+    }
+}
+```
+
+**测试覆盖** 
+
+一个类去实现接口，加上注解@Component(value = "imageCodeGenerator")
+
+```java
+/**
+ * <p>DESC: 测试图片验证码覆盖</p>
+ * <p>DATE: 2019-08-02 16:49</p>
+ * <p>VERSION:2.0.0</p>
+ * <p>@AUTHOR: ZhengYong</p>
+ */
+@Slf4j
+@Component(value = "imageCodeGenerator")
+public class ConvertImageConvert implements ImageCodeGenerator {
+    /**
+     * 创建图片验证码
+     *
+     * @param request request域
+     * @return 图片验证码对象
+     */
+    @Override
+    public ImageCode createImageCode(HttpServletRequest request) {
+        log.info("覆盖了----------哦");
+        return null;
+    }
+}
+```
 
